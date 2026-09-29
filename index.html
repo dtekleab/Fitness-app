@@ -425,7 +425,6 @@ textarea{background:var(--card2);border:1px solid var(--border);color:var(--text
     <div id="previewExList"></div>
     <button class="btn" style="margin-top:14px" onclick="launchFromPreview()">Start Workout</button>
     <button class="btn secondary" style="margin-top:10px" onclick="editWorkoutFromPreview()">Edit Workout</button>
-    <button class="btn secondary" style="margin-top:10px" onclick="openWorkoutHistory()">View History</button>
     <button class="btn danger" style="margin-top:10px" onclick="deleteWorkoutFromPreview()">Delete Workout</button>
   </div>
 </div>
@@ -446,7 +445,7 @@ textarea{background:var(--card2);border:1px solid var(--border);color:var(--text
 <!-- ACTIVE WORKOUT OVERLAY -->
 <div class="overlay" id="activeOverlay">
   <div class="active-toolbar">
-    <button class="close-x" onclick="finishWorkout()" title="Close">✕</button>
+    <button class="close-x" onclick="deleteActiveWorkout()" title="Delete Workout">✕</button>
     <div id="activeDuration" class="active-toolbar-timer">00:00:00</div>
     <button class="active-finish-btn" onclick="finishWorkout()">Finish</button>
   </div>
@@ -550,12 +549,18 @@ let dragCtx = null;
 let dragCollapseActive = false;
 let durationTimer = {startTs:null, intervalId:null};
 
-const COMMON_EXERCISES = ["Ab Wheel Rollout", "Arnold Press", "Back Extension", "Battle Ropes", "Bayside Rec Leg Press", "Bench Press (Barbell)", "Bench Press (Dumbbell)", "Bent Over One Arm Row (Dumbbell)", "Bent Over Row (Barbell)", "Bicep Curl (Barbell)", "Bicep Curl (Cable)", "Bicep Curl (Dumbbell)", "Box Jump", "Bulgarian Split Squat", "Cable Crossover", "Cable Crunch", "Cable Woodchop", "Calf Press On Linear Leg Press", "Calf Press on Seated Leg Press", "Chest Dip", "Chest Fly", "Chest Press (Machine)", "Chin Up", "Clean", "Clean and Jerk", "Concentration Curl", "Crunch", "Deadlift (Barbell)", "Decline Cable Fly", "Dumbbell Row", "EZ Bar Curl", "Face Pull (Cable)", "Farmer's Carry", "Front Squat (Barbell)", "Glute Bridge", "Glute Kickback (Machine)", "Goblet Squat", "Good Morning", "Hack Squat", "Hammer Curl (Dumbbell)", "Hanging Leg Raise", "Hip Abduction (Machine)", "Hip Adduction (Machine)", "Hip Thrust (Barbell)", "Hip Thrust (Smith Machine)", "ISO-Lateral Front Lat Pull-down", "ISO-Lateral High Row", "Incline Bench Press (Barbell)", "Incline Bench Press (Dumbbell)", "Incline Bench Press (Smith Machine)", "Incline Curl (Dumbbell)", "Incline Dumbbell Lat Raise ", "Incline Push Ups", "Iso-Lateral Decline Press", "Iso-Lateral Horizontal Bench Press", "Iso-Lateral Incline Press", "Iso-Lateral Row (Machine)", "Iso-lateral Low Row", "Jump Rope", "Kettlebell Swing", "Kneeling Face Pulls", "Kneeling Leg Curl", "Landmine Press", "Lat Pulldown (Cable)", "Lat Pulldown (Machine)", "Lat Pulldown (Single Arm)", "Lat Pulldown - Underhand (Cable)", "Lateral Raise (Cable)", "Lateral Raise (Dumbbell)", "Lateral Raise (Machine)", "Leaning Lateral Raises (Dumbbell)", "Leg Extension (Machine)", "Leg Press", "Linear Leg Press", "Lunge (Dumbbell)", "Lying Face Pull", "Lying Leg Curl (Machine)", "Mountain Climber", "Narrow Grip Barbell Curl", "Nordic Curl", "Overhead Press (Barbell)", "Overhead Press (Dumbbell)", "Pec Deck", "Pistol Squat", "Plank", "Power Clean", "Preacher Curl (Machine)", "Pull Up", "Push Up", "Reverse Curl (Cable)", "Reverse Fly (Dumbbell)", "Romanian Deadlift (Barbell)", "Rowing Machine", "Running (Treadmill)", "Russian Twist", "Seated Cable Row", "Seated Calf Raise (Plate Loaded)", "Seated Leg Curl (Machine)", "Seated Leg Press (Machine)", "Seated Overhead Press (Dumbbell)", "Seated Palms Up Wrist Curl (Dumbbell)", "Seated Row (Cable)", "Seated Wide-Grip Row (Cable)", "Shoulder Press (Machine)", "Shoulder Press (Plate Loaded)", "Shrug (Barbell)", "Shrug (Machine)", "Sit Up", "Skullcrusher", "Sled Push", "Snatch", "Squat (Barbell)", "Squat (Smith Machine)", "Standing Calf Raise (Barbell)", "Standing Calf Raise (Machine)", "Sumo Deadlift", "T-Bar Row", "Thruster", "Trap Bar Deadlift", "Triceps Extension", "Triceps Extension (Cable)", "Triceps Press", "Triceps Pushdown (Cable - Straight Bar)", "Walking", "Wall Sit", "Wrist Curl", "Zercher Squat"];
+const COMMON_EXERCISES = ["Ab Wheel Rollout", "Arnold Press", "Back Extension", "Battle Ropes", "Bayside Rec Leg Press", "Bench Press (Barbell)", "Bench Press (Dumbbell)", "Bent Over One Arm Row (Dumbbell)", "Bent Over Row (Barbell)", "Bicep Curl (Barbell)", "Bicep Curl (Cable)", "Bicep Curl (Dumbbell)", "Box Jump", "Bulgarian Split Squat", "Cable Crossover", "Cable Crunch", "Cable Woodchop", "Calf Press On Linear Leg Press", "Calf Press on Seated Leg Press", "Chest Dip", "Chest Fly", "Chest Press (Machine)", "Chin Up", "Clean", "Clean and Jerk", "Concentration Curl", "Crunch", "Deadlift (Barbell)", "Decline Cable Fly", "Dumbbell Row", "EZ Bar Curl", "Face Pull (Cable)", "Farmer's Carry", "Front Squat (Barbell)", "Glute Bridge", "Glute Kickback (Machine)", "Goblet Squat", "Good Morning", "Hack Squat", "Hammer Curl (Dumbbell)", "Hanging Leg Raise", "Hip Abduction (Machine)", "Hip Adduction (Machine)", "Hip Thrust (Barbell)", "Hip Thrust (Smith Machine)", "ISO-Lateral Front Lat Pull-down", "ISO-Lateral High Row", "Incline Bench Press (Barbell)", "Incline Bench Press (Dumbbell)", "Incline Bench Press (Smith Machine)", "Incline Curl (Dumbbell)", "Incline Dumbbell Lat Raise ", "Incline Push Ups", "Iso-Lateral Decline Press", "Iso-Lateral Horizontal Bench Press", "Iso-Lateral Incline Press", "Iso-Lateral Row (Machine)", "Iso-lateral Low Row", "Jump Rope", "Kettlebell Swing", "Kneeling Face Pulls", "Kneeling Leg Curl", "Landmine Press", "Lat Pulldown (Cable)", "Lat Pulldown (Machine)", "Lat Pulldown (Single Arm)", "Lat Pulldown - Underhand (Cable)", "Lateral Raise (Cable)", "Lateral Raise (Dumbbell)", "Lateral Raise (Machine)", "Leaning Lateral Raises (Dumbbell)", "Leg Extension (Machine)", "Leg Press", "Linear Leg Press", "Lunge (Dumbbell)", "Lying Face Pull", "Lying Leg Curl (Machine)", "Mountain Climber", "Narrow Grip Barbell Curl", "Nordic Curl", "Overhead Press (Barbell)", "Overhead Press (Dumbbell)", "Pec Deck", "Pistol Squat", "Plank", "Power Clean", "Preacher Curl (Machine)", "Pull Up", "Push Up", "Reverse Curl (Cable)", "Reverse Fly (Dumbbell)", "Romanian Deadlift (Barbell)", "Rowing Machine", "Running (Treadmill)", "Russian Twist", "Seated Cable Row", "Seated Calf Raise (Plate Loaded)", "Seated Leg Curl (Machine)", "Seated Leg Press (Machine)", "Seated Overhead Press (Dumbbell)", "Seated Palms Up Wrist Curl (Dumbbell)", "Seated Row (Cable)", "Seated Wide-Grip Row (Cable)", "Shoulder Press (Machine)", "Shoulder Press (Plate Loaded)", "Shrug (Barbell)", "Shrug (Machine)", "Sit Up", "Skullcrusher", "Sled Push", "Snatch", "Squat (Barbell)", "Squat (Smith Machine)", "Standing Calf Raise (Barbell)", "Standing Calf Raise (Machine)", "Sumo Deadlift", "T-Bar Row", "Thruster", "Trap Bar Deadlift", "Triceps Extension", "Triceps Extension (Cable)", "Triceps Press", "Triceps Pushdown (Cable - Straight Bar)", "Walking", "Wall Sit", "Wrist Curl", "Zercher Squat", "Boxing", "Muay Thai", "Brazilian Jiu-Jitsu", "Wrestling", "Judo", "Kickboxing", "Karate", "Skiing", "Cycling", "Swimming", "Hiking", "Elliptical", "StairMaster"];
 
 // ---------- CARDIO EXERCISES (distance + duration instead of weight + reps) ----------
-const CARDIO_EXERCISES = new Set(["Running (Treadmill)", "Walking", "Rowing Machine", "Jump Rope"]);
+// Duration-only cardio has no meaningful "distance" (combat sports, etc.) — only time is logged.
+const DURATION_ONLY_CARDIO = new Set(["Boxing", "Muay Thai", "Brazilian Jiu-Jitsu", "Wrestling", "Judo", "Kickboxing", "Karate"]);
+const CARDIO_EXERCISES = new Set(["Running (Treadmill)", "Walking", "Rowing Machine", "Jump Rope", "Skiing", "Cycling", "Swimming", "Hiking", "Elliptical", "StairMaster", ...DURATION_ONLY_CARDIO]);
+function isDurationOnlyCardio(name){ return DURATION_ONLY_CARDIO.has(name); }
 function isCardioExercise(name){ return CARDIO_EXERCISES.has(name); }
-function isCardioSet(s){ return !!s && s.distance != null; }
+function isCardioSet(s){ return !!s && s.durationSec != null; }
+function fmtCardioVal(s){
+  return s.distance!=null ? `${distDisp(s.distance)}${distUnitLabel()} in ${fmtDuration(s.durationSec)}` : fmtDuration(s.durationSec);
+}
 function distUnitLabel(){ return settings.distanceUnit==='km' ? 'km' : 'mi'; }
 // Distance is always stored canonically in miles (mirrors wDisp/wStore for weight/lbs).
 function distDisp(miles){ if(miles==null) return miles; return Math.round((settings.distanceUnit==='km' ? miles*1.60934 : miles)*100)/100; }
@@ -957,23 +962,6 @@ function getAllSessionRecords(){
 }
 
 // ---------- WORKOUT HISTORY (per-session records, used for history view + PR tracking) ----------
-function openWorkoutHistory(){
-  const w = workouts.find(x=>x.id===selectedWorkoutId);
-  if(!w) return;
-  document.getElementById('workoutHistoryTitle').textContent = w.name + ' History';
-  const sessions = workoutHistory.filter(h=>h.workoutId===w.id).slice().sort((a,b)=>b.timestamp-a.timestamp);
-  const list = document.getElementById('workoutHistoryList');
-  if(sessions.length===0){
-    list.innerHTML = `<div style="color:var(--sub);font-size:13px">No completed sessions of this workout yet.</div>`;
-  } else {
-    list.innerHTML = sessions.map(s=>`
-      <div class="history-session" onclick="openSessionDetail('${s.sessionId}')">
-        <div class="hs-date">${formatDateTime(s.date, s.timestamp)}</div>
-        <div class="hs-meta">${s.exercises.length} exercises${s.prCount?' — '+s.prCount+' PR'+(s.prCount>1?'s':''):''}${s.duration?' — 🕐 '+fmtDurationShort(s.duration):''}</div>
-      </div>`).join('');
-  }
-  document.getElementById('workoutHistoryOverlay').classList.add('active');
-}
 function openAllWorkoutHistory(){
   document.getElementById('workoutHistoryTitle').textContent = 'Workout History';
   const sessions = getAllSessionRecords();
@@ -992,12 +980,29 @@ function openAllWorkoutHistory(){
 function openSessionDetail(sessionId){
   const s = getAllSessionRecords().find(h=>h.sessionId===sessionId);
   if(!s) return;
+  const sidEsc = s.sessionId.replace(/'/g,"\\'");
   document.getElementById('sessionDetailTitle').textContent = s.workoutName;
   document.getElementById('sessionDetailBody').innerHTML = `
     <div style="color:var(--sub);font-size:12px;margin-bottom:10px">${formatDateTime(s.date, s.timestamp)}${s.duration?' · 🕐 '+fmtDurationShort(s.duration):''}</div>
     ${renderSessionExercisesHTML(s)}
+    <button class="btn danger" style="margin-top:14px" onclick="deleteSession('${sidEsc}')">Delete This Workout</button>
   `;
   document.getElementById('sessionDetailOverlay').classList.add('active');
+}
+async function deleteSession(sessionId){
+  const ok = await showConfirm('This permanently deletes this workout session and its logged sets. This cannot be undone.', 'Delete Workout', 'Delete', 'Cancel');
+  if(!ok) return;
+  workoutHistory = workoutHistory.filter(h=>h.sessionId!==sessionId);
+  S.set('workoutHistory', workoutHistory);
+  Object.keys(exerciseLogs).forEach(name=>{
+    exerciseLogs[name] = exerciseLogs[name].filter(l=>(l.sessionId||l.date)!==sessionId);
+    if(exerciseLogs[name].length===0) delete exerciseLogs[name];
+  });
+  S.set('exerciseLogs', exerciseLogs);
+  closeOverlay('sessionDetailOverlay');
+  const histOverlay = document.getElementById('workoutHistoryOverlay');
+  if(histOverlay && histOverlay.classList.contains('active')) openAllWorkoutHistory();
+  renderHome();
 }
 function renderSessionExercisesHTML(s){
   return s.exercises.map(ex=>{
@@ -1007,7 +1012,7 @@ function renderSessionExercisesHTML(s){
       <h4>${ex.name}</h4>
       ${ex.sets.map((set)=>{
         const label = set.warmup ? 'Warmup' : `Set ${++workingCount}`;
-        const valText = isCardioSet(set) ? `${distDisp(set.distance)}${distUnitLabel()} in ${fmtDuration(set.durationSec)}` : `${wDisp(set.weight)}${weightUnitAbbrev()} → ${set.reps}`;
+        const valText = isCardioSet(set) ? fmtCardioVal(set) : `${wDisp(set.weight)}${weightUnitAbbrev()} → ${set.reps}`;
         return `
         <div class="session-set-row">
           <span>${label}: ${valText}${set.failed?' (failed)':''}</span>
@@ -1129,17 +1134,20 @@ function renderActiveWorkout(){
   }
   el.innerHTML = activeWorkout.exercises.map((ex,ei)=>{
     const cardio = isCardioExercise(ex.name);
+    const durationOnly = cardio && isDurationOnlyCardio(ex.name);
     let workingCount = 0;
     const loggedRows = ex.loggedSets.map((s)=>{
       if(!s.warmup) workingCount++;
       const label = s.warmup ? 'W' : workingCount;
       const col1 = cardio ? `${distDisp(s.distance)}${distUnitLabel()}` : `${wDisp(s.weight)}${weightUnitAbbrev()}`;
       const col2 = cardio ? fmtDuration(s.durationSec) : s.reps;
+      const col1Html = durationOnly ? '' : `<div class="set-display">${col1}</div>`;
+      const col2Style = durationOnly ? ' style="grid-column: span 2"' : '';
       return `<div class="set-trow done ${s.warmup?'warmup':''}">
         <div class="set-num">${label}</div>
         <div class="set-prev">—</div>
-        <div class="set-display">${col1}</div>
-        <div class="set-display">${col2}</div>
+        ${col1Html}
+        <div class="set-display"${col2Style}>${col2}</div>
         <div class="set-check">${s.failed?'❌':'✅'}</div>
       </div>`;
     }).join('');
@@ -1148,16 +1156,20 @@ function renderActiveWorkout(){
       if(!r.warmup) workingCount++;
       const label = r.warmup ? 'W' : workingCount;
       let prevText = '—', inputsHtml;
-      if(cardio){
+      if(durationOnly){
+        if(r.prevDurationSec!=null) prevText = fmtDuration(r.prevDurationSec);
+        inputsHtml = `
+        <input type="text" inputmode="numeric" enterkeyhint="done" placeholder="MM:SS" id="dur_${ei}_${ri}" value="${r.durationSec!=null && r.durationSec!=='' ? fmtDuration(r.durationSec) : ''}" style="grid-column: span 2" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();logSet(${ei},${ri});focusNextPlannedField(${ei});}">`;
+      } else if(cardio){
         if(r.prevDistance!=null && r.prevDurationSec!=null) prevText = `${r.prevDistance}${distUnitLabel()} · ${fmtDuration(r.prevDurationSec)}`;
         inputsHtml = `
-        <input type="number" step="0.01" placeholder="${distUnitLabel()}" id="dist_${ei}_${ri}" value="${r.distance||''}">
-        <input type="text" placeholder="MM:SS" id="dur_${ei}_${ri}" value="${r.durationSec!=null && r.durationSec!=='' ? fmtDuration(r.durationSec) : ''}">`;
+        <input type="number" step="0.01" inputmode="decimal" enterkeyhint="next" placeholder="${distUnitLabel()}" id="dist_${ei}_${ri}" value="${r.distance||''}" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dur_${ei}_${ri}').focus();}">
+        <input type="text" inputmode="numeric" enterkeyhint="done" placeholder="MM:SS" id="dur_${ei}_${ri}" value="${r.durationSec!=null && r.durationSec!=='' ? fmtDuration(r.durationSec) : ''}" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();logSet(${ei},${ri});focusNextPlannedField(${ei});}">`;
       } else {
         if(r.prevWeight!=null && r.prevReps!=null) prevText = `${r.prevWeight}${weightUnitAbbrev()} × ${r.prevReps}`;
         inputsHtml = `
-        <input type="number" placeholder="${unitLabel()}" id="wt_${ei}_${ri}" value="${r.weight||''}">
-        <input type="number" placeholder="Reps" id="reps_${ei}_${ri}" value="${r.reps||''}">`;
+        <input type="number" inputmode="decimal" enterkeyhint="next" placeholder="${unitLabel()}" id="wt_${ei}_${ri}" value="${r.weight||''}" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('reps_${ei}_${ri}').focus();}">
+        <input type="number" inputmode="numeric" enterkeyhint="done" placeholder="Reps" id="reps_${ei}_${ri}" value="${r.reps||''}" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();logSet(${ei},${ri});focusNextPlannedField(${ei});}">`;
       }
       return `<div class="set-trow ${r.warmup?'warmup':''}">
         <div class="set-num" onclick="toggleWarmup(${ei},${ri})" title="Tap to mark as warmup">${label}</div>
@@ -1173,6 +1185,8 @@ function renderActiveWorkout(){
     const nameEsc = ex.name.replace(/'/g,"\\'");
     const col1Head = cardio ? `Dist (${distUnitLabel()})` : unitLabel();
     const col2Head = cardio ? 'Time' : 'Reps';
+    const col1HeadHtml = durationOnly ? '' : `<div>${col1Head}</div>`;
+    const col2HeadStyle = durationOnly ? ' style="grid-column: span 2"' : '';
     return `<div class="card">
     <div class="ex-card-head">
       <span class="drag-handle" onpointerdown="onHandlePointerDown(event, ${ei}, 'active')">⠿</span>
@@ -1182,13 +1196,13 @@ function renderActiveWorkout(){
     </div>
     ${cardio ? '' : `<div style="text-align:right;font-size:11px;color:var(--sub);margin:-4px 0 8px">Rest <input type="number" class="ex-rest-input" value="${ex.restSeconds||settings.restSeconds||90}" onchange="setExRest(${ei},this.value)">s</div>`}
     <div class="set-table">
-      <div class="set-thead"><div>Set</div><div>Previous</div><div>${col1Head}</div><div>${col2Head}</div><div></div></div>
+      <div class="set-thead"><div>Set</div><div>Previous</div>${col1HeadHtml}<div${col2HeadStyle}>${col2Head}</div><div></div></div>
       ${loggedRows}
       ${restHtml}
       ${plannedRows}
     </div>
     <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn secondary small" style="flex:1" onclick="addPlannedRow(${ei},false)">+ Add ${cardio?'Run':'Set'}</button>
+      <button class="btn secondary small" style="flex:1" onclick="addPlannedRow(${ei},false)">+ Add ${durationOnly?'Round':(cardio?'Run':'Set')}</button>
       ${cardio ? '' : `<button class="btn secondary small" style="flex:1;color:var(--warn)" onclick="addPlannedRow(${ei},true)">+ Add Warmup</button>`}
     </div>
     </div>`;
@@ -1211,7 +1225,7 @@ function openExQuickHistory(name){
     <div class="history-session" style="cursor:default">
       <div class="hs-date">${formatDateTime(l.date)}</div>
       <div class="hs-meta">${cardio
-        ? l.sets.map(s=>`${distDisp(s.distance)}${distUnitLabel()} in ${fmtDuration(s.durationSec)}`).join(' · ')
+        ? l.sets.map(s=>fmtCardioVal(s)).join(' · ')
         : l.sets.map(s=>`${s.warmup?'W: ':''}${wDisp(s.weight)}${weightUnitAbbrev()} × ${s.reps}`).join(' · ')}</div>
     </div>`).join('') : `<div style="color:var(--sub);font-size:13px">No previous sessions logged yet.</div>`;
   document.getElementById('exQuickHistoryOverlay').classList.add('active');
@@ -1249,9 +1263,10 @@ function logSet(ei,ri){
   const failed = document.getElementById(`fail_${ei}_${ri}`).checked;
   const warmup = !!ex.plannedRows[ri].warmup;
   if(isCardioExercise(ex.name)){
-    const distanceDisp = parseFloat(document.getElementById(`dist_${ei}_${ri}`).value)||0;
+    const distEl = document.getElementById(`dist_${ei}_${ri}`);
+    const distanceDisp = distEl ? (parseFloat(distEl.value)||0) : null;
     const durationSec = parseDurationStr(document.getElementById(`dur_${ei}_${ri}`).value)||0;
-    ex.loggedSets.push({distance:distStore(distanceDisp), durationSec, failed, warmup});
+    ex.loggedSets.push({distance: distanceDisp!=null ? distStore(distanceDisp) : null, durationSec, failed, warmup});
   } else {
     const reps = parseFloat(document.getElementById(`reps_${ei}_${ri}`).value)||0;
     const weightDisp = parseFloat(document.getElementById(`wt_${ei}_${ri}`).value)||0;
@@ -1260,6 +1275,13 @@ function logSet(ei,ri){
   ex.plannedRows.splice(ri,1);
   const restSecs = ex.restSeconds || settings.restSeconds || 90;
   startRest(ei, restSecs);
+}
+function focusNextPlannedField(ei){
+  const ex = activeWorkout && activeWorkout.exercises[ei];
+  if(!ex || !ex.plannedRows.length) return;
+  const id = isCardioExercise(ex.name) ? `dist_${ei}_0` : `wt_${ei}_0`;
+  const el = document.getElementById(id);
+  if(el) el.focus();
 }
 function fmtRestTime(t){ t=Math.max(0,Math.round(t)); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); }
 function renderRestTimerHTML(){
@@ -1427,8 +1449,12 @@ function bestSetOf(sets){
   const pool = base.filter(s=>!s.failed);
   const arr = pool.length ? pool : base;
   if(arr.length && isCardioSet(arr[0])){
-    // "Best" for a run/row/etc is the longest distance covered.
-    return arr.reduce((best,s)=> (!best || s.distance>best.distance) ? s : best, null);
+    // "Best" for a run/row/etc is the longest distance covered; for duration-only
+    // cardio (no distance tracked, e.g. combat sports) it's the longest time.
+    if(arr[0].distance!=null){
+      return arr.reduce((best,s)=> (!best || s.distance>best.distance) ? s : best, null);
+    }
+    return arr.reduce((best,s)=> (!best || s.durationSec>best.durationSec) ? s : best, null);
   }
   return arr.reduce((best,s)=>{
     if(!best) return s;
@@ -1506,7 +1532,7 @@ function showCompletionSummary(s){
   const listEl = document.getElementById('completionExList');
   listEl.innerHTML = s.exercises.map(ex=>{
     const best = bestSetOf(ex.sets);
-    const valText = isCardioSet(best) ? `${distDisp(best.distance)}${distUnitLabel()} in ${fmtDuration(best.durationSec)}` : `${wDisp(best.weight)}${weightUnitAbbrev()} × ${best.reps}`;
+    const valText = isCardioSet(best) ? fmtCardioVal(best) : `${wDisp(best.weight)}${weightUnitAbbrev()} × ${best.reps}`;
     return `<div class="session-set-row" style="cursor:pointer" onclick="openSessionDetail('${s.sessionId}')">
       <span>${ex.name}</span><span style="font-weight:700">${valText}</span>
     </div>`;
@@ -2647,8 +2673,24 @@ function showExerciseDetail(name){
   currentExerciseDetailName = name;
   const logs = exerciseLogs[name]||[];
   if(isCardioExercise(name)){
+    const durationOnly = isDurationOnlyCardio(name);
     const last = logs.length ? logs[logs.length-1] : null;
     const lastBest = last ? bestSetOf(last.sets) : null;
+    if(durationOnly){
+      const chartData = logs.map(l=>{
+        const durMin = l.sets.filter(s=>!s.failed).reduce((a,s)=>Math.max(a,s.durationSec||0),0)/60;
+        return {v: Math.round(durMin*10)/10, date: l.date};
+      });
+      document.getElementById('exDetail').innerHTML = `
+        <div class="card">
+          <h3>${name}</h3>
+          <div style="margin:10px 0"><span style="font-size:26px;font-weight:800">${lastBest?fmtDuration(lastBest.durationSec):'--'}</span>
+          <span style="color:var(--sub);font-size:12px"> ${lastBest?'last session':'no data'}</span></div>
+          <div class="chart-wrap" style="margin-top:12px"><svg class="chart" id="chartEx"></svg><div class="chart-tooltip" id="ttEx"></div></div>
+        </div>`;
+      drawChart('chartEx', chartData, 'ttEx', 'min');
+      return;
+    }
     const chartData = logs.map(l=>{
       const dist = l.sets.filter(s=>!s.failed).reduce((a,s)=>Math.max(a,s.distance||0),0);
       return {v: distDisp(dist), date: l.date};
@@ -2697,7 +2739,7 @@ function genExport(){
   lines.push('','--- EXERCISES ---');
   Object.entries(exerciseLogs).forEach(([name,logs])=>{
     logs.filter(l=>new Date(l.date)>=cutoff).forEach(l=>{
-      const setsStr = l.sets.map(s=>isCardioSet(s) ? `${distDisp(s.distance)}${distUnitLabel()} in ${fmtDuration(s.durationSec)}${s.failed?'(failed)':''}` : `${s.reps}x${wDisp(s.weight)}${settings.unit}${s.failed?'(failed)':''}`).join(', ');
+      const setsStr = l.sets.map(s=>isCardioSet(s) ? `${fmtCardioVal(s)}${s.failed?'(failed)':''}` : `${s.reps}x${wDisp(s.weight)}${settings.unit}${s.failed?'(failed)':''}`).join(', ');
       lines.push(`${l.date} | ${name}: ${setsStr}`);
     });
   });

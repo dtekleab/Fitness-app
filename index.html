@@ -1720,7 +1720,7 @@ function drawChart(svgId, points, tooltipId, unitText){
     tt.style.left = pxX+'px'; tt.style.top = pxY+'px';
     tt.style.transform = 'translate(-50%,-110%)';
     tt.style.display='block';
-    const d = points[idx].date ? formatDateTime(points[idx].date, points[idx].ts) : '';
+    const d = points[idx].date ? formatDateTime(points[idx].date) : '';
     const unitSuffix = unitText ? ' '+unitText : '';
     tt.textContent = d ? `${d}: ${points[idx].v}${unitSuffix}` : points[idx].v;
     requestAnimationFrame(()=>{

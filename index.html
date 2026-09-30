@@ -992,25 +992,43 @@ function openSessionDetail(sessionId){
   `;
   document.getElementById('sessionDetailOverlay').classList.add('active');
 }
+let sessionEditDraft = null;
 function openSessionEdit(sessionId){
   const s = getAllSessionRecords().find(h=>h.sessionId===sessionId);
   if(!s) return;
-  const sidEsc = s.sessionId.replace(/'/g,"\\'");
-  document.getElementById('sessionDetailTitle').textContent = 'Edit: ' + s.workoutName;
-  const body = s.exercises.map((ex, exIdx) => {
+  sessionEditDraft = {
+    sessionId: s.sessionId, workoutName: s.workoutName, reconstructed: !!s.reconstructed,
+    exercises: JSON.parse(JSON.stringify(s.exercises))
+  };
+  renderSessionEditForm();
+  document.getElementById('sessionDetailOverlay').classList.add('active');
+}
+function blankSetFor(name){
+  const cardio = isCardioExercise(name);
+  const durationOnly = cardio && isDurationOnlyCardio(name);
+  return durationOnly ? {distance:null, durationSec:0, failed:false, warmup:false, _new:true}
+    : cardio ? {distance:0, durationSec:0, failed:false, warmup:false, _new:true}
+    : {reps:0, weight:0, failed:false, warmup:false, _new:true};
+}
+function renderSessionEditForm(){
+  const d = sessionEditDraft;
+  if(!d) return;
+  const sidEsc = d.sessionId.replace(/'/g,"\\'");
+  document.getElementById('sessionDetailTitle').textContent = 'Edit: ' + d.workoutName;
+  const body = d.exercises.map((ex, exIdx) => {
     const cardio = isCardioExercise(ex.name);
     const durationOnly = cardio && isDurationOnlyCardio(ex.name);
     const rows = ex.sets.map((set, setIdx) => {
       const label = set.warmup ? 'Warmup' : 'Set';
       let inputsHtml;
       if(durationOnly){
-        inputsHtml = `<input type="text" inputmode="numeric" placeholder="MM:SS" id="se_dur_${exIdx}_${setIdx}" value="${fmtDuration(set.durationSec)}" style="width:80px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
+        inputsHtml = `<input type="text" inputmode="numeric" placeholder="MM:SS" id="se_dur_${exIdx}_${setIdx}" value="${set.durationSec?fmtDuration(set.durationSec):''}" style="width:80px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
       } else if(cardio){
-        inputsHtml = `<input type="number" step="0.01" inputmode="decimal" placeholder="${distUnitLabel()}" id="se_dist_${exIdx}_${setIdx}" value="${distDisp(set.distance)}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">
-        <input type="text" inputmode="numeric" placeholder="MM:SS" id="se_dur_${exIdx}_${setIdx}" value="${fmtDuration(set.durationSec)}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
+        inputsHtml = `<input type="number" step="0.01" inputmode="decimal" placeholder="${distUnitLabel()}" id="se_dist_${exIdx}_${setIdx}" value="${set._new&&!set.distance?'':distDisp(set.distance)}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">
+        <input type="text" inputmode="numeric" placeholder="MM:SS" id="se_dur_${exIdx}_${setIdx}" value="${set.durationSec?fmtDuration(set.durationSec):''}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
       } else {
-        inputsHtml = `<input type="number" inputmode="decimal" placeholder="${unitLabel()}" id="se_wt_${exIdx}_${setIdx}" value="${wDisp(set.weight)}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">
-        <input type="number" inputmode="numeric" placeholder="Reps" id="se_reps_${exIdx}_${setIdx}" value="${set.reps}" style="width:60px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
+        inputsHtml = `<input type="number" inputmode="decimal" placeholder="${unitLabel()}" id="se_wt_${exIdx}_${setIdx}" value="${set._new&&!set.weight?'':wDisp(set.weight)}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">
+        <input type="number" inputmode="numeric" placeholder="Reps" id="se_reps_${exIdx}_${setIdx}" value="${set._new&&!set.reps?'':set.reps}" style="width:60px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
       }
       return `<div class="session-set-row" style="align-items:center">
         <span style="font-size:12px;color:var(--sub);min-width:56px">${label}</span>
@@ -1018,21 +1036,22 @@ function openSessionEdit(sessionId){
         <label style="font-size:11px;display:flex;align-items:center;gap:4px;margin-left:auto"><input type="checkbox" id="se_fail_${exIdx}_${setIdx}" ${set.failed?'checked':''}>Failed</label>
       </div>`;
     }).join('');
-    return `<div class="session-ex-block"><h4>${ex.name}</h4>${rows}</div>`;
+    return `<div class="session-ex-block"><h4>${ex.name}${ex._new?' <span style="color:var(--accent);font-size:11px;font-weight:600">NEW</span>':''}</h4>${rows}
+      <button class="btn secondary small" style="width:100%;margin-top:6px" onclick="addSetToSessionEdit(${exIdx})">+ Add Set</button></div>`;
   }).join('');
   document.getElementById('sessionDetailBody').innerHTML = `
     ${body}
+    <button class="btn secondary" style="width:100%;margin-top:6px" onclick="openAddExerciseToSessionEdit()">+ Add Exercise</button>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn" style="flex:1" onclick="saveSessionEdit('${sidEsc}')">Save Changes</button>
-      <button class="btn secondary" style="flex:1" onclick="openSessionDetail('${sidEsc}')">Cancel</button>
+      <button class="btn secondary" style="flex:1" onclick="sessionEditDraft=null;openSessionDetail('${sidEsc}')">Cancel</button>
     </div>
   `;
-  document.getElementById('sessionDetailOverlay').classList.add('active');
 }
-function saveSessionEdit(sessionId){
-  const s = getAllSessionRecords().find(h=>h.sessionId===sessionId);
-  if(!s) return;
-  s.exercises.forEach((ex, exIdx) => {
+function readSessionEditInputs(){
+  const d = sessionEditDraft;
+  if(!d) return;
+  d.exercises.forEach((ex, exIdx) => {
     const cardio = isCardioExercise(ex.name);
     const durationOnly = cardio && isDurationOnlyCardio(ex.name);
     ex.sets.forEach((set, setIdx) => {
@@ -1054,8 +1073,45 @@ function saveSessionEdit(sessionId){
       }
     });
   });
+}
+function addSetToSessionEdit(exIdx){
+  if(!sessionEditDraft) return;
+  readSessionEditInputs();
+  const ex = sessionEditDraft.exercises[exIdx];
+  ex.sets.push(blankSetFor(ex.name));
+  renderSessionEditForm();
+}
+function saveSessionEdit(sessionId){
+  const d = sessionEditDraft;
+  if(!d || d.sessionId!==sessionId) return;
+  readSessionEditInputs();
+  const isEmptySet = (name, set) => isCardioExercise(name)
+    ? !(set.durationSec>0 || set.distance>0)
+    : !(set.reps>0 || set.weight>0);
+  // Drop untouched blank sets from newly added rows, and newly added exercises left with no sets.
+  const exercises = d.exercises.map(ex=>({
+    ...ex,
+    sets: ex.sets.filter(set=>!(set._new && isEmptySet(ex.name, set)))
+  })).filter(ex=>ex.sets.length>0);
+  exercises.forEach(ex=>{ ex.sets.forEach(set=>{ delete set._new; }); });
+  const rec = workoutHistory.find(h=>h.sessionId===sessionId);
+  if(rec) rec.exercises = exercises.map(ex=>({name:ex.name, sets:ex.sets}));
+  // Keep exerciseLogs (used for per-exercise history/PRs/trends) in sync with the session.
+  const sessionDate = rec ? rec.date : (getAllSessionRecords().find(h=>h.sessionId===sessionId)||{}).date;
+  exercises.forEach(ex=>{
+    const cleanSets = ex.sets.map(({pr, ...rest})=>rest);
+    if(!exerciseLogs[ex.name]) exerciseLogs[ex.name]=[];
+    const entry = exerciseLogs[ex.name].find(l=>(l.sessionId||l.date)===sessionId);
+    if(entry){ entry.sets = cleanSets; }
+    else {
+      const e = {date: sessionDate, sets: cleanSets, sessionId};
+      if(!rec && d.workoutName) e.workoutName = d.workoutName;
+      exerciseLogs[ex.name].push(e);
+    }
+  });
   S.set('workoutHistory', workoutHistory);
   S.set('exerciseLogs', exerciseLogs);
+  sessionEditDraft = null;
   openSessionDetail(sessionId);
   const histOverlay = document.getElementById('workoutHistoryOverlay');
   if(histOverlay && histOverlay.classList.contains('active')) openAllWorkoutHistory();
@@ -2697,6 +2753,7 @@ function openAddExerciseToActive(){
   setTimeout(()=>document.getElementById('addExToActiveSearch').focus(), 50);
 }
 function openAddExerciseToSessionEdit(){
+  readSessionEditInputs();
   addExToActiveMode = 'sessionEdit';
   document.getElementById('addExToActiveSearch').value = '';
   document.getElementById('addExToActiveResults').innerHTML = '';
@@ -2719,12 +2776,7 @@ function renderAddExToActiveSearch(){
 function addExerciseToActive(name){
   if(addExToActiveMode==='sessionEdit'){
     if(!sessionEditDraft) return;
-    const cardio = isCardioExercise(name);
-    const durationOnly = cardio && isDurationOnlyCardio(name);
-    const newSet = durationOnly ? {distance:null, durationSec:0, failed:false, warmup:false}
-      : cardio ? {distance:0, durationSec:0, failed:false, warmup:false}
-      : {reps:0, weight:0, failed:false, warmup:false};
-    sessionEditDraft.exercises.push({name, sets:[newSet]});
+    sessionEditDraft.exercises.push({name, _new:true, sets:[blankSetFor(name)]});
     closeOverlay('addExToActiveOverlay');
     renderSessionEditForm();
     return;

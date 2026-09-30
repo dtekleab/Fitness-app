@@ -502,7 +502,7 @@ textarea{background:var(--card2);border:1px solid var(--border);color:var(--text
 <!-- SESSION DETAIL OVERLAY -->
 <div class="overlay" id="sessionDetailOverlay" style="z-index:140">
   <div class="overlay-header"><h2 id="sessionDetailTitle">Workout</h2><button class="close-x" onclick="closeOverlay('sessionDetailOverlay')">✕</button></div>
-  <div class="overlay-body" id="sessionDetailBody"></div>
+  <div class="overlay-body" id="sessionDetailBody" style="overflow-x:hidden"></div>
 </div>
 
 <!-- COMPLETION SUMMARY OVERLAY -->
@@ -547,6 +547,7 @@ let _restObserver = null;
 let _lastCompletedSessionId = null;
 let dragCtx = null;
 let dragCollapseActive = false;
+let dragCollapseEdit = false;
 let durationTimer = {startTs:null, intervalId:null};
 
 const COMMON_EXERCISES = ["Ab Wheel Rollout", "Arnold Press", "Back Extension", "Battle Ropes", "Bayside Rec Leg Press", "Bench Press (Barbell)", "Bench Press (Dumbbell)", "Bent Over One Arm Row (Dumbbell)", "Bent Over Row (Barbell)", "Bicep Curl (Barbell)", "Bicep Curl (Cable)", "Bicep Curl (Dumbbell)", "Box Jump", "Bulgarian Split Squat", "Cable Crossover", "Cable Crunch", "Cable Woodchop", "Calf Press On Linear Leg Press", "Calf Press on Seated Leg Press", "Chest Dip", "Chest Fly", "Chest Press (Machine)", "Chin Up", "Clean", "Clean and Jerk", "Concentration Curl", "Crunch", "Deadlift (Barbell)", "Decline Cable Fly", "Dumbbell Row", "EZ Bar Curl", "Face Pull (Cable)", "Farmer's Carry", "Front Squat (Barbell)", "Glute Bridge", "Glute Kickback (Machine)", "Goblet Squat", "Good Morning", "Hack Squat", "Hammer Curl (Dumbbell)", "Hanging Leg Raise", "Hip Abduction (Machine)", "Hip Adduction (Machine)", "Hip Thrust (Barbell)", "Hip Thrust (Smith Machine)", "ISO-Lateral Front Lat Pull-down", "ISO-Lateral High Row", "Incline Bench Press (Barbell)", "Incline Bench Press (Dumbbell)", "Incline Bench Press (Smith Machine)", "Incline Curl (Dumbbell)", "Incline Dumbbell Lat Raise ", "Incline Push Ups", "Iso-Lateral Decline Press", "Iso-Lateral Horizontal Bench Press", "Iso-Lateral Incline Press", "Iso-Lateral Row (Machine)", "Iso-lateral Low Row", "Jump Rope", "Kettlebell Swing", "Kneeling Face Pulls", "Kneeling Leg Curl", "Landmine Press", "Lat Pulldown (Cable)", "Lat Pulldown (Machine)", "Lat Pulldown (Single Arm)", "Lat Pulldown - Underhand (Cable)", "Lateral Raise (Cable)", "Lateral Raise (Dumbbell)", "Lateral Raise (Machine)", "Leaning Lateral Raises (Dumbbell)", "Leg Extension (Machine)", "Leg Press", "Linear Leg Press", "Lunge (Dumbbell)", "Lying Face Pull", "Lying Leg Curl (Machine)", "Mountain Climber", "Narrow Grip Barbell Curl", "Nordic Curl", "Overhead Press (Barbell)", "Overhead Press (Dumbbell)", "Pec Deck", "Pistol Squat", "Plank", "Power Clean", "Preacher Curl (Machine)", "Pull Up", "Push Up", "Reverse Curl (Cable)", "Reverse Fly (Dumbbell)", "Romanian Deadlift (Barbell)", "Rowing Machine", "Running (Treadmill)", "Russian Twist", "Seated Cable Row", "Seated Calf Raise (Plate Loaded)", "Seated Leg Curl (Machine)", "Seated Leg Press (Machine)", "Seated Overhead Press (Dumbbell)", "Seated Palms Up Wrist Curl (Dumbbell)", "Seated Row (Cable)", "Seated Wide-Grip Row (Cable)", "Shoulder Press (Machine)", "Shoulder Press (Plate Loaded)", "Shrug (Barbell)", "Shrug (Machine)", "Sit Up", "Skullcrusher", "Sled Push", "Snatch", "Squat (Barbell)", "Squat (Smith Machine)", "Standing Calf Raise (Barbell)", "Standing Calf Raise (Machine)", "Sumo Deadlift", "T-Bar Row", "Thruster", "Trap Bar Deadlift", "Triceps Extension", "Triceps Extension (Cable)", "Triceps Press", "Triceps Pushdown (Cable - Straight Bar)", "Walking", "Wall Sit", "Wrist Curl", "Zercher Squat", "Boxing", "Muay Thai", "Brazilian Jiu-Jitsu", "Wrestling", "Judo", "Kickboxing", "Karate", "Skiing", "Cycling", "Swimming", "Hiking", "Elliptical", "StairMaster"];
@@ -1013,6 +1014,15 @@ function blankSetFor(name){
 function renderSessionEditForm(){
   const d = sessionEditDraft;
   if(!d) return;
+  if(dragCollapseEdit){
+    document.getElementById('sessionDetailBody').innerHTML = d.exercises.map((ex,ei)=>`
+      <div class="card ex-card-collapsed">
+        <span class="drag-handle" onpointerdown="onHandlePointerDown(event, ${ei}, 'edit')">⠿</span>
+        <h3 style="flex:1">${ex.name}</h3>
+        <span style="font-size:12px;color:var(--sub);white-space:nowrap">${ex.sets.length} sets</span>
+      </div>`).join('');
+    return;
+  }
   const sidEsc = d.sessionId.replace(/'/g,"\\'");
   document.getElementById('sessionDetailTitle').textContent = 'Edit: ' + d.workoutName;
   const body = d.exercises.map((ex, exIdx) => {
@@ -1022,21 +1032,21 @@ function renderSessionEditForm(){
       const label = set.warmup ? 'Warmup' : 'Set';
       let inputsHtml;
       if(durationOnly){
-        inputsHtml = `<input type="text" inputmode="numeric" placeholder="MM:SS" id="se_dur_${exIdx}_${setIdx}" value="${set.durationSec?fmtDuration(set.durationSec):''}" style="width:80px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
+        inputsHtml = `<input type="text" inputmode="numeric" placeholder="MM:SS" id="se_dur_${exIdx}_${setIdx}" value="${set.durationSec?fmtDuration(set.durationSec):''}" style="flex:1 1 0;min-width:0;width:auto;margin:0 4px" onfocus="this.select()">`;
       } else if(cardio){
-        inputsHtml = `<input type="number" step="0.01" inputmode="decimal" placeholder="${distUnitLabel()}" id="se_dist_${exIdx}_${setIdx}" value="${set._new&&!set.distance?'':distDisp(set.distance)}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">
-        <input type="text" inputmode="numeric" placeholder="MM:SS" id="se_dur_${exIdx}_${setIdx}" value="${set.durationSec?fmtDuration(set.durationSec):''}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
+        inputsHtml = `<input type="number" step="0.01" inputmode="decimal" placeholder="${distUnitLabel()}" id="se_dist_${exIdx}_${setIdx}" value="${set._new&&!set.distance?'':distDisp(set.distance)}" style="flex:1 1 0;min-width:0;width:auto;margin:0 4px" onfocus="this.select()">
+        <input type="text" inputmode="numeric" placeholder="MM:SS" id="se_dur_${exIdx}_${setIdx}" value="${set.durationSec?fmtDuration(set.durationSec):''}" style="flex:1 1 0;min-width:0;width:auto;margin:0 4px" onfocus="this.select()">`;
       } else {
-        inputsHtml = `<input type="number" inputmode="decimal" placeholder="${unitLabel()}" id="se_wt_${exIdx}_${setIdx}" value="${set._new&&!set.weight?'':wDisp(set.weight)}" style="width:70px;display:inline-block;margin:0 6px" onfocus="this.select()">
-        <input type="number" inputmode="numeric" placeholder="Reps" id="se_reps_${exIdx}_${setIdx}" value="${set._new&&!set.reps?'':set.reps}" style="width:60px;display:inline-block;margin:0 6px" onfocus="this.select()">`;
+        inputsHtml = `<input type="number" inputmode="decimal" placeholder="${unitLabel()}" id="se_wt_${exIdx}_${setIdx}" value="${set._new&&!set.weight?'':wDisp(set.weight)}" style="flex:1 1 0;min-width:0;width:auto;margin:0 4px" onfocus="this.select()">
+        <input type="number" inputmode="numeric" placeholder="Reps" id="se_reps_${exIdx}_${setIdx}" value="${set._new&&!set.reps?'':set.reps}" style="flex:1 1 0;min-width:0;width:auto;margin:0 4px" onfocus="this.select()">`;
       }
-      return `<div class="session-set-row" style="align-items:center">
-        <span style="font-size:12px;color:var(--sub);min-width:56px">${label}</span>
+      return `<div class="session-set-row" style="align-items:center;gap:2px">
+        <span onclick="toggleSessionEditWarmup(${exIdx},${setIdx})" title="Tap to switch warmup / working set" style="font-size:12px;min-width:52px;flex:none;cursor:pointer;text-decoration:underline dotted;${set.warmup?'color:var(--warn)':'color:var(--sub)'}">${label}</span>
         ${inputsHtml}
-        <label style="font-size:11px;display:flex;align-items:center;gap:4px;margin-left:auto"><input type="checkbox" id="se_fail_${exIdx}_${setIdx}" ${set.failed?'checked':''}>Failed</label>
+        <label style="font-size:11px;display:flex;align-items:center;gap:4px;margin-left:4px;flex:none"><input type="checkbox" style="width:14px;height:14px;margin:0;flex:none" id="se_fail_${exIdx}_${setIdx}" ${set.failed?'checked':''}>Failed</label>
       </div>`;
     }).join('');
-    return `<div class="session-ex-block"><h4>${ex.name}${ex._new?' <span style="color:var(--accent);font-size:11px;font-weight:600">NEW</span>':''}</h4>${rows}
+    return `<div class="session-ex-block"><h4 style="display:flex;align-items:center;gap:6px"><span class="drag-handle" onpointerdown="onHandlePointerDown(event, ${exIdx}, 'edit')" style="padding-left:0">⠿</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">${ex.name}${ex._new?' <span style="color:var(--accent);font-size:11px;font-weight:600">NEW</span>':''}</span></h4>${rows}
       <button class="btn secondary small" style="width:100%;margin-top:6px" onclick="addSetToSessionEdit(${exIdx})">+ Add Set</button></div>`;
   }).join('');
   document.getElementById('sessionDetailBody').innerHTML = `
@@ -1074,6 +1084,20 @@ function readSessionEditInputs(){
     });
   });
 }
+function moveInArray(arr, i, dir){
+  const j = i + dir;
+  if(j<0 || j>=arr.length) return false;
+  const [x] = arr.splice(i,1);
+  arr.splice(j,0,x);
+  return true;
+}
+function toggleSessionEditWarmup(exIdx, setIdx){
+  if(!sessionEditDraft) return;
+  readSessionEditInputs();
+  const set = sessionEditDraft.exercises[exIdx].sets[setIdx];
+  set.warmup = !set.warmup;
+  renderSessionEditForm();
+}
 function addSetToSessionEdit(exIdx){
   if(!sessionEditDraft) return;
   readSessionEditInputs();
@@ -1094,7 +1118,16 @@ function saveSessionEdit(sessionId){
     sets: ex.sets.filter(set=>!(set._new && isEmptySet(ex.name, set)))
   })).filter(ex=>ex.sets.length>0);
   exercises.forEach(ex=>{ ex.sets.forEach(set=>{ delete set._new; }); });
-  const rec = workoutHistory.find(h=>h.sessionId===sessionId);
+  let rec = workoutHistory.find(h=>h.sessionId===sessionId);
+  if(!rec){
+    // Sessions rebuilt from per-exercise logs (e.g. imports) have no stored exercise order,
+    // so give them a real record now that the order/warmups may have been changed.
+    const base = getAllSessionRecords().find(h=>h.sessionId===sessionId);
+    if(base){
+      rec = {sessionId, workoutId:null, workoutName:base.workoutName, date:base.date, timestamp:base.timestamp, exercises:[], prCount:0};
+      workoutHistory.push(rec);
+    }
+  }
   if(rec) rec.exercises = exercises.map(ex=>({name:ex.name, sets:ex.sets}));
   // Keep exerciseLogs (used for per-exercise history/PRs/trends) in sync with the session.
   const sessionDate = rec ? rec.date : (getAllSessionRecords().find(h=>h.sessionId===sessionId)||{}).date;
@@ -1105,7 +1138,7 @@ function saveSessionEdit(sessionId){
     if(entry){ entry.sets = cleanSets; }
     else {
       const e = {date: sessionDate, sets: cleanSets, sessionId};
-      if(!rec && d.workoutName) e.workoutName = d.workoutName;
+      if(d.workoutName) e.workoutName = d.workoutName;
       exerciseLogs[ex.name].push(e);
     }
   });
@@ -1272,7 +1305,7 @@ function renderActiveWorkout(){
       const col1Html = durationOnly ? '' : `<div class="set-display">${col1}</div>`;
       const col2Style = durationOnly ? ' style="grid-column: span 2"' : '';
       return `<div class="set-trow done ${s.warmup?'warmup':''}">
-        <div class="set-num">${label}</div>
+        <div class="set-num" onclick="toggleLoggedWarmup(${ei},${ex.loggedSets.indexOf(s)})" title="Tap to switch warmup / working set">${label}</div>
         <div class="set-prev">—</div>
         ${col1Html}
         <div class="set-display"${col2Style}>${col2}</div>
@@ -1306,7 +1339,7 @@ function renderActiveWorkout(){
         <div class="set-check"><button class="btn small" onclick="logSet(${ei},${ri})">✓</button></div>
       </div>
       <div class="set-subrow">
-        <label><input type="checkbox" id="fail_${ei}_${ri}">Failed rep</label>
+        <label><input type="checkbox" id="fail_${ei}_${ri}" ${r.failed?'checked':''}>Failed rep</label>
         <span class="remove-link" onclick="removePlannedRow(${ei},${ri})">Remove set</span>
       </div>`;
     }).join('');
@@ -1342,7 +1375,15 @@ function addPlannedRow(ei, warmup){
   const ex = activeWorkout.exercises[ei];
   const row = blankPlannedRow(ex.name);
   row.warmup = !!warmup;
-  ex.plannedRows.push(row);
+  syncPlannedInputs(ei);
+  if(warmup){
+    // Warmups belong before the working sets: slot after the last existing warmup row.
+    let at = 0;
+    ex.plannedRows.forEach((r,i)=>{ if(r.warmup) at = i+1; });
+    ex.plannedRows.splice(at,0,row);
+  } else {
+    ex.plannedRows.push(row);
+  }
   renderActiveWorkout();
 }
 function openExQuickHistory(name){
@@ -1377,12 +1418,41 @@ async function removeExerciseFromWorkout(ei){
   activeWorkout.exercises.splice(ei,1);
   renderActiveWorkout();
 }
+function syncPlannedInputs(ei){
+  // Copy whatever is typed into the unlogged rows back into state so a re-render doesn't lose it.
+  const ex = activeWorkout.exercises[ei];
+  const cardio = isCardioExercise(ex.name);
+  const durationOnly = cardio && isDurationOnlyCardio(ex.name);
+  ex.plannedRows.forEach((r,ri)=>{
+    const g = id=>document.getElementById(id);
+    const fail = g(`fail_${ei}_${ri}`); if(fail) r.failed = fail.checked;
+    if(durationOnly){
+      const d = g(`dur_${ei}_${ri}`); if(d) r.durationSec = parseDurationStr(d.value)||'';
+    } else if(cardio){
+      const dist = g(`dist_${ei}_${ri}`), d = g(`dur_${ei}_${ri}`);
+      if(dist) r.distance = parseFloat(dist.value)||'';
+      if(d) r.durationSec = parseDurationStr(d.value)||'';
+    } else {
+      const w = g(`wt_${ei}_${ri}`), rp = g(`reps_${ei}_${ri}`);
+      if(w) r.weight = parseFloat(w.value)||'';
+      if(rp) r.reps = parseFloat(rp.value)||'';
+    }
+  });
+}
+function toggleLoggedWarmup(ei,si){
+  const s = activeWorkout.exercises[ei].loggedSets[si];
+  if(!s || isCardioSet(s)) return;
+  s.warmup = !s.warmup;
+  renderActiveWorkout();
+}
 function toggleWarmup(ei,ri){
+  syncPlannedInputs(ei);
   const r = activeWorkout.exercises[ei].plannedRows[ri];
   r.warmup = !r.warmup;
   renderActiveWorkout();
 }
 function removePlannedRow(ei,ri){
+  syncPlannedInputs(ei);
   activeWorkout.exercises[ei].plannedRows.splice(ri,1);
   renderActiveWorkout();
 }
@@ -1496,9 +1566,9 @@ async function deleteActiveWorkout(){
 }
 
 // ---------- DRAG-AND-DROP EXERCISE REORDER ----------
-function getReorderArr(kind){ return kind==='build' ? buildingExercises : activeWorkout.exercises; }
-function getReorderRender(kind){ return kind==='build' ? renderBuildExList : renderActiveWorkout; }
-function getReorderContainer(kind){ return kind==='build' ? 'buildExList' : 'activeExList'; }
+function getReorderArr(kind){ return kind==='build' ? buildingExercises : kind==='edit' ? sessionEditDraft.exercises : activeWorkout.exercises; }
+function getReorderRender(kind){ return kind==='build' ? renderBuildExList : kind==='edit' ? renderSessionEditForm : renderActiveWorkout; }
+function getReorderContainer(kind){ return kind==='build' ? 'buildExList' : kind==='edit' ? 'sessionDetailBody' : 'activeExList'; }
 function getReorderCards(kind){
   const container = document.getElementById(getReorderContainer(kind));
   return [...container.children].filter(c=>c.classList.contains('card'));
@@ -1515,6 +1585,10 @@ function onHandlePointerDown(e, idx, kind){
   if(kind==='active'){
     dragCollapseActive = true;
     getReorderRender(kind)();
+  } else if(kind==='edit'){
+    readSessionEditInputs();
+    dragCollapseEdit = true;
+    renderSessionEditForm();
   }
   markDragging(kind, idx, true);
 }
@@ -1547,6 +1621,9 @@ function onHandlePointerUp(){
   if(kind==='active'){
     dragCollapseActive = false;
     renderActiveWorkout();
+  } else if(kind==='edit'){
+    dragCollapseEdit = false;
+    renderSessionEditForm();
   }
 }
 
